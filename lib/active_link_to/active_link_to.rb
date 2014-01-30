@@ -11,10 +11,12 @@ module ActiveLinkTo
   #   active_link_to(users_path, :active => :exclusive, :wrap_tag => :li)
   def active_link_to(*args, &block)
     if block_given?
-      name          = capture(&block)
-      options       = args[0] || {}
-      html_options  = args[1] || {}
+      wrap_tag_contents = capture(&block)
+      name          = args[0]
+      options       = args[1] || {}
+      html_options  = args[2] || {}
     else
+      wrap_tag_contents = ''
       name          = args[0]
       options       = args[1] || {}
       html_options  = args[2] || {}
@@ -24,16 +26,20 @@ module ActiveLinkTo
     active_options  = { }
     link_options    = { }
     html_options.each do |k, v|
-      if [:active, :class_active, :class_inactive, :active_disable, :wrap_tag].member?(k)
+      if [:active, :class_active, :class_inactive, :active_disable, :wrap_tag, :wrap_tag_class_active, :wrap_tag_class_inactive, :wrap_tag_class].member?(k)
         active_options[k] = v
       else
         link_options[k] = v
       end
     end
 
-    css_class = link_options.delete(:class).to_s + ' '
+    css_class = link_options.delete(:wrap_tag_class).to_s + ' '
     css_class << active_link_to_class(url, active_options)
     css_class.strip!
+
+    wrap_css_class = active_options.delete(:wrap_tag_class).to_s + ' '
+    wrap_css_class << active_link_to_wrap_class(url, active_options)
+    wrap_css_class.strip!
 
     wrap_tag = active_options[:wrap_tag].present? ? active_options[:wrap_tag] : nil
     link_options[:class] = css_class if css_class.present?
@@ -44,7 +50,7 @@ module ActiveLinkTo
       link_to(name, url, link_options)
     end
 
-    wrap_tag ? content_tag(wrap_tag, link, :class => (css_class if css_class.present?)) : link
+    wrap_tag ? content_tag(wrap_tag, link << wrap_tag_contents, :class => (wrap_css_class if wrap_css_class.present?)) : link
   end
 
   # Returns css class name. Takes the link's URL and its params
@@ -56,6 +62,18 @@ module ActiveLinkTo
       options[:class_active] || 'active'
     else
       options[:class_inactive] || ''
+    end
+  end
+
+  # Returns css class name. Takes the link's URL and its params
+  # Example usage:
+  #   active_link_to_wrap_class('/root', :class_active => 'on', :class_inactive => 'off')
+  #
+  def active_link_to_wrap_class(url, options = {})
+    if is_active_link?(url, options[:active])
+      options[:wrap_tag_class_active] || 'active'
+    else
+      options[:wrap_tag_class_inactive] || ''
     end
   end
 
